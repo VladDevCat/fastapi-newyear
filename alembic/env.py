@@ -6,6 +6,10 @@ from sqlalchemy import engine_from_config, pool
 from app.core.config import settings
 from app.models.base import Base
 from app.models.item import HolidayItem  # noqa: F401
+from app.models.oauth_state import OAuthState  # noqa: F401
+from app.models.password_reset_token import PasswordResetToken  # noqa: F401
+from app.models.session_token import SessionToken  # noqa: F401
+from app.models.user import User  # noqa: F401
 
 config = context.config
 

@@ -22,29 +22,41 @@ class ItemRepository:
         )
         return self.db.scalar(stmt)
 
-    def get_active_by_title(
+    def get_active_by_title_for_owner(
         self,
         title: str,
+        owner_id: uuid.UUID,
         exclude_id: uuid.UUID | None = None,
     ) -> HolidayItem | None:
         stmt = select(HolidayItem).where(
             HolidayItem.title == title,
+            HolidayItem.owner_id == owner_id,
             HolidayItem.deleted_at.is_(None),
         )
         if exclude_id is not None:
             stmt = stmt.where(HolidayItem.id != exclude_id)
         return self.db.scalar(stmt)
 
-    def list_active(self, offset: int, limit: int) -> tuple[list[HolidayItem], int]:
+    def list_active_by_owner(
+        self,
+        owner_id: uuid.UUID,
+        offset: int,
+        limit: int,
+    ) -> tuple[list[HolidayItem], int]:
         items_stmt = (
             select(HolidayItem)
-            .where(HolidayItem.deleted_at.is_(None))
+            .where(
+                HolidayItem.owner_id == owner_id,
+                HolidayItem.deleted_at.is_(None),
+            )
             .order_by(HolidayItem.created_at.desc())
             .offset(offset)
             .limit(limit)
         )
+
         count_stmt = select(func.count(HolidayItem.id)).where(
-            HolidayItem.deleted_at.is_(None)
+            HolidayItem.owner_id == owner_id,
+            HolidayItem.deleted_at.is_(None),
         )
 
         items = list(self.db.scalars(items_stmt).all())

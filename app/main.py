@@ -2,6 +2,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
+from app.api.auth import router as auth_router
 from app.api.items import router as items_router
 from app.core.config import settings
 from app.core.exceptions import AppException
@@ -14,6 +15,7 @@ def get_info():
     return {"message": "LR1 endpoint is still alive"}
 
 
+app.include_router(auth_router)
 app.include_router(items_router)
 
 
