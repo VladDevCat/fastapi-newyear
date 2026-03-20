@@ -1,46 +1,40 @@
-from fastapi import FastAPI, Request
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 
-from app.api.auth import router as auth_router
-from app.api.items import router as items_router
-from app.core.config import settings
-from app.core.exceptions import AppException
+from app.common.config import settings
+from app.common.web.error_handlers import register_exception_handlers
+from app.common.web.openapi import TAGS_METADATA, build_custom_openapi
+from app.modules.auth.router import router as auth_router
+from app.modules.items.router import router as items_router
 
-app = FastAPI(title=settings.APP_NAME)
+app = FastAPI(
+    title=settings.APP_NAME,
+    openapi_url="/api/openapi.json" if settings.docs_enabled else None,
+    docs_url="/api/docs" if settings.docs_enabled else None,
+    redoc_url=None,
+    openapi_tags=TAGS_METADATA,
+    swagger_ui_parameters={
+        "displayRequestDuration": True,
+        "tryItOutEnabled": True,
+    } if settings.docs_enabled else None,
+    swagger_ui_oauth2_redirect_url="/api/docs/oauth2-redirect" if settings.docs_enabled else None,
+    swagger_ui_init_oauth={
+        "appName": "Holiday Prep API Docs",
+        "clientId": settings.YANDEX_CLIENT_ID,
+        "scopes": "login:info login:email",
+        "usePkceWithAuthorizationCodeGrant": False,
+    } if settings.docs_enabled else None,
+)
+
+register_exception_handlers(app)
+
+if settings.docs_enabled:
+    app.openapi = build_custom_openapi(app)
 
 
-@app.get("/info")
+@app.get("/info", tags=["System"], summary="Проверка базового статуса приложения")
 def get_info():
     return {"message": "LR1 endpoint is still alive"}
 
 
 app.include_router(auth_router)
 app.include_router(items_router)
-
-
-@app.exception_handler(AppException)
-async def app_exception_handler(_: Request, exc: AppException):
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail},
-    )
-
-
-@app.exception_handler(RequestValidationError)
-async def validation_exception_handler(_: Request, exc: RequestValidationError):
-    return JSONResponse(
-        status_code=400,
-        content={
-            "detail": "Bad Request",
-            "errors": exc.errors(),
-        },
-    )
-
-
-@app.exception_handler(Exception)
-async def internal_exception_handler(_: Request, exc: Exception):
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal Server Error"},
-    )
