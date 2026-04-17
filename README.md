@@ -1,7 +1,5 @@
 # Лабораторные работы 6-7: MongoDB, Redis, MinIO
 
-Документ описывает изменения проекта `fastapi-newyear` для лабораторных работ 6 и 7, переменные окружения и сценарии тестирования через Docker, API, MongoDB, Redis и MinIO.
-
 ## Lab 6. MongoDB и Redis
 
 ### Что реализовано
@@ -776,30 +774,3 @@ curl.exe -s -b $cookie http://localhost:4200/profile
 "avatar": null
 ```
 
-## Быстрый чек-лист сдачи
-
-Lab 6:
-
-- MongoDB работает в Docker.
-- Redis работает в Docker с паролем.
-- CRUD items работает через MongoDB.
-- Soft delete работает через `deleted_at`.
-- GET /items кешируется в Redis.
-- POST/PUT/PATCH/DELETE инвалидируют кеш.
-- Access JTI появляется в Redis после login/register.
-- Logout удаляет JTI и старый access token получает 401.
-
-Lab 7:
-
-- MinIO работает в Docker.
-- Bucket `wp-files` создан вручную.
-- POST /files загружает файл через stream.
-- Metadata файла сохраняется в MongoDB.
-- Файл появляется в MinIO.
-- GET /files/{fileId} скачивает файл через stream.
-- Заголовки скачивания корректные.
-- POST /profile устанавливает avatar_file_id.
-- Второй пользователь не может скачать чужой файл.
-- MIME и size validation работают.
-- DELETE /files/{fileId} делает soft delete и удаляет объект из MinIO.
-- Redis metadata cache инвалидируется при удалении.
