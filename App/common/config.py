@@ -42,6 +42,16 @@ class Settings(BaseSettings):
     REDIS_KEY_PREFIX: str = "wp"
     ITEMS_CACHE_TTL_SECONDS: int = 120
     USER_PROFILE_CACHE_TTL_SECONDS: int = 300
+    FILE_META_CACHE_TTL_SECONDS: int = 300
+
+    MINIO_ENDPOINT: str = "minio:9000"
+    MINIO_PUBLIC_ENDPOINT: str = "localhost:9000"
+    MINIO_ROOT_USER: str = "minioadmin"
+    MINIO_ROOT_PASSWORD: str = "minioadmin_secure_password"
+    MINIO_BUCKET: str = "wp-files"
+    MINIO_SECURE: bool = False
+    MAX_UPLOAD_SIZE_BYTES: int = 10485760
+    AVATAR_ALLOWED_MIME_TYPES: str = "image/png,image/jpeg,image/jpg"
 
     JWT_ACCESS_SECRET: str = "change_me_access_secret"
     JWT_REFRESH_SECRET: str = "change_me_refresh_secret"
@@ -94,6 +104,14 @@ class Settings(BaseSettings):
     @property
     def oauth_state_ttl(self) -> timedelta:
         return timedelta(minutes=self.OAUTH_STATE_EXPIRE_MINUTES)
+
+    @property
+    def avatar_allowed_mime_types(self) -> set[str]:
+        return {
+            item.strip().lower()
+            for item in self.AVATAR_ALLOWED_MIME_TYPES.split(",")
+            if item.strip()
+        }
 
 
 settings = Settings()

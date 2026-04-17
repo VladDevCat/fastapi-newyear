@@ -52,6 +52,7 @@ def create_indexes() -> None:
         unique=True,
         partialFilterExpression={"yandex_id": {"$type": "string"}},
     )
+    database.users.create_index("avatar_file_id")
     database.users.create_index("deleted_at")
 
     database.holiday_items.create_index([("owner_id", 1), ("deleted_at", 1), ("created_at", -1)])
@@ -69,3 +70,6 @@ def create_indexes() -> None:
     database.oauth_states.create_index("state_hash", unique=True)
     database.oauth_states.create_index([("provider", 1), ("is_used", 1)])
     database.oauth_states.create_index("expires_at")
+
+    database.files.create_index([("user_id", 1), ("deleted_at", 1), ("created_at", -1)])
+    database.files.create_index("object_key", unique=True)

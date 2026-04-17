@@ -6,6 +6,8 @@ from app.common.web.error_handlers import register_exception_handlers
 from app.common.web.openapi import TAGS_METADATA, build_custom_openapi
 from app.modules.auth.router import router as auth_router
 from app.modules.items.router import router as items_router
+from app.modules.storage.profile_router import router as profile_router
+from app.modules.storage.router import router as files_router
 
 app = FastAPI(
     title=settings.APP_NAME,
@@ -44,3 +46,5 @@ def get_info():
 
 app.include_router(auth_router)
 app.include_router(items_router)
+app.include_router(files_router)
+app.include_router(profile_router)

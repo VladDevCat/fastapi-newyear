@@ -10,6 +10,14 @@ TAGS_METADATA = [
         "name": "Items",
         "description": "CRUD операции с основным ресурсом HolidayItem. Доступ только для авторизованных пользователей.",
     },
+    {
+        "name": "Files",
+        "description": "Upload, download and delete user-owned files stored in MinIO.",
+    },
+    {
+        "name": "Profile",
+        "description": "Current user profile and avatar binding.",
+    },
 ]
 
 BAD_REQUEST_EXAMPLE = {

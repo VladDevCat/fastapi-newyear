@@ -35,6 +35,9 @@ class UsersService:
                 id=public_user.id,
                 email=str(public_user.email),
                 phone=public_user.phone,
+                display_name=public_user.display_name,
+                bio=public_user.bio,
+                avatar_file_id=public_user.avatar_file_id,
                 created_at=public_user.created_at,
             )
 
@@ -86,4 +89,10 @@ class UsersService:
             },
         )
         self._invalidate_profile(user.id)
+        return updated
+
+    def update_profile(self, user: User, data: dict) -> User:
+        updated = self.repo.update(user, data)
+        self._invalidate_profile(user.id)
+        self._cache_public_profile(updated)
         return updated

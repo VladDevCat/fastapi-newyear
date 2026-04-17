@@ -12,6 +12,9 @@ class User:
     id: uuid.UUID
     email: str
     phone: str | None = None
+    display_name: str | None = None
+    bio: str | None = None
+    avatar_file_id: uuid.UUID | None = None
     password_hash: str | None = None
     password_salt: str | None = None
     yandex_id: str | None = None

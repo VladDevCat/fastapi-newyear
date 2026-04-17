@@ -41,6 +41,9 @@ class UserRepository:
             id=data.get("id", uuid.uuid4()),
             email=data["email"],
             phone=data.get("phone"),
+            display_name=data.get("display_name"),
+            bio=data.get("bio"),
+            avatar_file_id=data.get("avatar_file_id"),
             password_hash=data.get("password_hash"),
             password_salt=data.get("password_salt"),
             yandex_id=data.get("yandex_id"),
@@ -51,11 +54,15 @@ class UserRepository:
         document = dataclass_to_document(user)
         if document.get("yandex_id") is None:
             document.pop("yandex_id", None)
+        if document.get("avatar_file_id") is None:
+            document.pop("avatar_file_id", None)
         self.collection.insert_one(document)
         return user
 
     def update(self, user: User, data: dict) -> User:
         update_data = {**data, "updated_at": utc_now()}
+        if "avatar_file_id" in update_data and update_data["avatar_file_id"] is not None:
+            update_data["avatar_file_id"] = document_id(update_data["avatar_file_id"])
         self.collection.update_one(
             {"_id": document_id(user.id)},
             {"$set": update_data},
