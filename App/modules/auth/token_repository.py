@@ -1,19 +1,13 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 
-from sqlalchemy import select, update
-from sqlalchemy.orm import Session
-
+from app.common.mongo_helpers import dataclass_to_document, document_id, document_to_dataclass, utc_now
 from app.modules.auth.token_model import SessionToken
 
 
-def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
 class SessionTokenRepository:
-    def __init__(self, db: Session):
-        self.db = db
+    def __init__(self, db):
+        self.collection = db.collection("session_tokens")
 
     def create_token(
         self,
@@ -32,10 +26,9 @@ class SessionTokenRepository:
             token_type=token_type,
             token_hash=token_hash,
             expires_at=expires_at,
+            created_at=utc_now(),
         )
-        self.db.add(token)
-        self.db.flush()
-        self.db.refresh(token)
+        self.collection.insert_one(dataclass_to_document(token))
         return token
 
     def get_valid_token(
@@ -45,39 +38,57 @@ class SessionTokenRepository:
         token_hash: str,
         token_type: str,
     ) -> SessionToken | None:
-        stmt = select(SessionToken).where(
-            SessionToken.id == token_id,
-            SessionToken.token_hash == token_hash,
-            SessionToken.token_type == token_type,
-            SessionToken.is_revoked.is_(False),
-            SessionToken.expires_at > utc_now(),
+        document = self.collection.find_one(
+            {
+                "_id": document_id(token_id),
+                "token_hash": token_hash,
+                "token_type": token_type,
+                "is_revoked": False,
+                "expires_at": {"$gt": utc_now()},
+            }
         )
-        return self.db.scalar(stmt)
+        return document_to_dataclass(SessionToken, document)
+
+    def list_valid_tokens_by_session(
+        self,
+        *,
+        session_id: uuid.UUID,
+        token_type: str,
+    ) -> list[SessionToken]:
+        cursor = self.collection.find(
+            {
+                "session_id": document_id(session_id),
+                "token_type": token_type,
+                "is_revoked": False,
+                "expires_at": {"$gt": utc_now()},
+            }
+        )
+        return [document_to_dataclass(SessionToken, document) for document in cursor]
 
     def revoke_by_session_id(self, session_id: uuid.UUID) -> None:
-        stmt = (
-            update(SessionToken)
-            .where(
-                SessionToken.session_id == session_id,
-                SessionToken.is_revoked.is_(False),
-            )
-            .values(
-                is_revoked=True,
-                revoked_at=utc_now(),
-            )
+        self.collection.update_many(
+            {
+                "session_id": document_id(session_id),
+                "is_revoked": False,
+            },
+            {
+                "$set": {
+                    "is_revoked": True,
+                    "revoked_at": utc_now(),
+                }
+            },
         )
-        self.db.execute(stmt)
 
     def revoke_all_for_user(self, user_id: uuid.UUID) -> None:
-        stmt = (
-            update(SessionToken)
-            .where(
-                SessionToken.user_id == user_id,
-                SessionToken.is_revoked.is_(False),
-            )
-            .values(
-                is_revoked=True,
-                revoked_at=utc_now(),
-            )
+        self.collection.update_many(
+            {
+                "user_id": document_id(user_id),
+                "is_revoked": False,
+            },
+            {
+                "$set": {
+                    "is_revoked": True,
+                    "revoked_at": utc_now(),
+                }
+            },
         )
-        self.db.execute(stmt)

@@ -1,26 +1,21 @@
 import uuid
-from datetime import datetime, timezone
 
-from sqlalchemy import func, select
-from sqlalchemy.orm import Session
-
+from app.common.mongo_helpers import dataclass_to_document, document_id, document_to_dataclass, utc_now
 from app.modules.items.model import HolidayItem
 
 
-def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
 class ItemRepository:
-    def __init__(self, db: Session):
-        self.db = db
+    def __init__(self, db):
+        self.collection = db.collection("holiday_items")
 
     def get_active_by_id(self, item_id: uuid.UUID) -> HolidayItem | None:
-        stmt = select(HolidayItem).where(
-            HolidayItem.id == item_id,
-            HolidayItem.deleted_at.is_(None),
+        document = self.collection.find_one(
+            {
+                "_id": document_id(item_id),
+                "deleted_at": None,
+            }
         )
-        return self.db.scalar(stmt)
+        return document_to_dataclass(HolidayItem, document)
 
     def get_active_by_title_for_owner(
         self,
@@ -28,14 +23,14 @@ class ItemRepository:
         owner_id: uuid.UUID,
         exclude_id: uuid.UUID | None = None,
     ) -> HolidayItem | None:
-        stmt = select(HolidayItem).where(
-            HolidayItem.title == title,
-            HolidayItem.owner_id == owner_id,
-            HolidayItem.deleted_at.is_(None),
-        )
+        query = {
+            "title": title,
+            "owner_id": document_id(owner_id),
+            "deleted_at": None,
+        }
         if exclude_id is not None:
-            stmt = stmt.where(HolidayItem.id != exclude_id)
-        return self.db.scalar(stmt)
+            query["_id"] = {"$ne": document_id(exclude_id)}
+        return document_to_dataclass(HolidayItem, self.collection.find_one(query))
 
     def list_active_by_owner(
         self,
@@ -43,42 +38,48 @@ class ItemRepository:
         offset: int,
         limit: int,
     ) -> tuple[list[HolidayItem], int]:
-        items_stmt = (
-            select(HolidayItem)
-            .where(
-                HolidayItem.owner_id == owner_id,
-                HolidayItem.deleted_at.is_(None),
-            )
-            .order_by(HolidayItem.created_at.desc())
-            .offset(offset)
+        query = {
+            "owner_id": document_id(owner_id),
+            "deleted_at": None,
+        }
+        cursor = (
+            self.collection.find(query)
+            .sort("created_at", -1)
+            .skip(offset)
             .limit(limit)
         )
-
-        count_stmt = select(func.count(HolidayItem.id)).where(
-            HolidayItem.owner_id == owner_id,
-            HolidayItem.deleted_at.is_(None),
-        )
-
-        items = list(self.db.scalars(items_stmt).all())
-        total = self.db.scalar(count_stmt) or 0
+        items = [document_to_dataclass(HolidayItem, document) for document in cursor]
+        total = self.collection.count_documents(query)
         return items, total
 
     def create(self, data: dict) -> HolidayItem:
-        item = HolidayItem(**data)
-        self.db.add(item)
-        self.db.flush()
-        self.db.refresh(item)
+        now = utc_now()
+        item = HolidayItem(
+            id=data.get("id", uuid.uuid4()),
+            owner_id=data.get("owner_id"),
+            title=data["title"],
+            description=data["description"],
+            status=data.get("status") or "planned",
+            created_at=data.get("created_at", now),
+            updated_at=data.get("updated_at", now),
+            deleted_at=data.get("deleted_at"),
+        )
+        self.collection.insert_one(dataclass_to_document(item))
         return item
 
     def update(self, item: HolidayItem, data: dict) -> HolidayItem:
-        for field, value in data.items():
-            setattr(item, field, value)
-        self.db.add(item)
-        self.db.flush()
-        self.db.refresh(item)
-        return item
+        update_data = {**data, "updated_at": utc_now()}
+        if "owner_id" in update_data:
+            update_data["owner_id"] = document_id(update_data["owner_id"])
+        self.collection.update_one(
+            {"_id": document_id(item.id)},
+            {"$set": update_data},
+        )
+        return self.get_active_by_id(item.id)
 
     def soft_delete(self, item: HolidayItem) -> None:
-        item.deleted_at = utc_now()
-        self.db.add(item)
-        self.db.flush()
+        now = utc_now()
+        self.collection.update_one(
+            {"_id": document_id(item.id)},
+            {"$set": {"deleted_at": now, "updated_at": now}},
+        )

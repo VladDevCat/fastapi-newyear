@@ -27,11 +27,21 @@ class Settings(BaseSettings):
     APP_ENV: str = "development"
     SWAGGER_ENABLED: bool = True
 
-    DB_USER: str = "student"
-    DB_PASSWORD: str = "student_secure_password"
-    DB_NAME: str = "wp_labs"
-    DB_HOST: str = "db"
-    DB_PORT: int = 5432
+    MONGO_INITDB_ROOT_USERNAME: str = "student"
+    MONGO_INITDB_ROOT_PASSWORD: str = "student_secure_password"
+    MONGO_DB_NAME: str = "wp_labs"
+    MONGO_HOST: str = "mongo"
+    MONGO_PORT: int = 27017
+    MONGO_AUTH_SOURCE: str = "admin"
+    MONGO_URI: str | None = None
+
+    REDIS_HOST: str = "redis"
+    REDIS_PORT: int = 6379
+    REDIS_PASSWORD: str = "redis_secure_password"
+    REDIS_DB: int = 0
+    REDIS_KEY_PREFIX: str = "wp"
+    ITEMS_CACHE_TTL_SECONDS: int = 120
+    USER_PROFILE_CACHE_TTL_SECONDS: int = 300
 
     JWT_ACCESS_SECRET: str = "change_me_access_secret"
     JWT_REFRESH_SECRET: str = "change_me_refresh_secret"
@@ -60,10 +70,13 @@ class Settings(BaseSettings):
         return self.APP_ENV.lower() in {"development", "local"} and self.SWAGGER_ENABLED
 
     @property
-    def database_url(self) -> str:
+    def mongo_uri(self) -> str:
+        if self.MONGO_URI:
+            return self.MONGO_URI
         return (
-            f"postgresql+psycopg://{self.DB_USER}:{self.DB_PASSWORD}"
-            f"@{self.DB_HOST}:{self.DB_PORT}/{self.DB_NAME}"
+            f"mongodb://{self.MONGO_INITDB_ROOT_USERNAME}:{self.MONGO_INITDB_ROOT_PASSWORD}"
+            f"@{self.MONGO_HOST}:{self.MONGO_PORT}/{self.MONGO_DB_NAME}"
+            f"?authSource={self.MONGO_AUTH_SOURCE}"
         )
 
     @property

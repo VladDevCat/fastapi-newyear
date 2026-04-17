@@ -42,6 +42,11 @@ def get_current_auth(
 
     token_repo = SessionTokenRepository(db)
     users_service = UsersService(db)
+    auth_service = AuthService(db)
+
+    redis_status = auth_service.is_access_jti_valid(user_id=user_id, token_id=token_id)
+    if redis_status is False:
+        raise UnauthorizedException("Access token revoked or not found")
 
     token_record = token_repo.get_valid_token(
         token_id=token_id,

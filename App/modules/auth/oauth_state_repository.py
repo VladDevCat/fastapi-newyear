@@ -1,38 +1,39 @@
-from datetime import datetime, timezone
+import uuid
 
-from sqlalchemy import select
-from sqlalchemy.orm import Session
-
+from app.common.mongo_helpers import dataclass_to_document, document_id, document_to_dataclass, utc_now
 from app.modules.auth.oauth_state_model import OAuthState
 
 
-def utc_now() -> datetime:
-    return datetime.now(timezone.utc)
-
-
 class OAuthStateRepository:
-    def __init__(self, db: Session):
-        self.db = db
+    def __init__(self, db):
+        self.collection = db.collection("oauth_states")
 
     def create(self, data: dict) -> OAuthState:
-        state = OAuthState(**data)
-        self.db.add(state)
-        self.db.flush()
-        self.db.refresh(state)
+        state = OAuthState(
+            id=data.get("id", uuid.uuid4()),
+            provider=data["provider"],
+            state_hash=data["state_hash"],
+            expires_at=data["expires_at"],
+            is_used=data.get("is_used", False),
+            created_at=data.get("created_at", utc_now()),
+        )
+        self.collection.insert_one(dataclass_to_document(state))
         return state
 
     def get_valid_state(self, provider: str, state_hash: str) -> OAuthState | None:
-        stmt = select(OAuthState).where(
-            OAuthState.provider == provider,
-            OAuthState.state_hash == state_hash,
-            OAuthState.is_used.is_(False),
-            OAuthState.expires_at > utc_now(),
+        document = self.collection.find_one(
+            {
+                "provider": provider,
+                "state_hash": state_hash,
+                "is_used": False,
+                "expires_at": {"$gt": utc_now()},
+            }
         )
-        return self.db.scalar(stmt)
+        return document_to_dataclass(OAuthState, document)
 
     def mark_used(self, state: OAuthState) -> OAuthState:
-        state.is_used = True
-        self.db.add(state)
-        self.db.flush()
-        self.db.refresh(state)
-        return state
+        self.collection.update_one(
+            {"_id": document_id(state.id)},
+            {"$set": {"is_used": True}},
+        )
+        return document_to_dataclass(OAuthState, self.collection.find_one({"_id": document_id(state.id)}))

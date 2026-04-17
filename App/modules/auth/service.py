@@ -1,6 +1,7 @@
 import uuid
 from datetime import datetime, timezone
 
+from app.common.cache import cache
 from app.common.config import settings
 from app.common.exceptions import (
     AppException,
@@ -39,6 +40,38 @@ class AuthService:
         self.oauth_states = OAuthStateRepository(db)
         self.password_resets = PasswordResetRepository(db)
         self.yandex = YandexOAuthClient()
+
+    def _access_jti_key(self, user_id: uuid.UUID, token_id: uuid.UUID) -> str:
+        return cache.key("auth", "user", user_id, "access", token_id)
+
+    def _store_access_jti(
+        self,
+        *,
+        user_id: uuid.UUID,
+        token_id: uuid.UUID,
+        expires_at: datetime,
+    ) -> None:
+        ttl = max(1, int((expires_at - datetime.now(timezone.utc)).total_seconds()))
+        cache.set(self._access_jti_key(user_id, token_id), "valid", ttl)
+
+    def is_access_jti_valid(self, user_id: uuid.UUID, token_id: uuid.UUID) -> bool | None:
+        if not cache.is_available():
+            return None
+        return cache.get(self._access_jti_key(user_id, token_id)) is not None
+
+    def _delete_access_jti(self, user_id: uuid.UUID, token_id: uuid.UUID) -> None:
+        cache.del_key(self._access_jti_key(user_id, token_id))
+
+    def _delete_access_jtis_for_session(self, user_id: uuid.UUID, session_id: uuid.UUID) -> None:
+        access_tokens = self.tokens.list_valid_tokens_by_session(
+            session_id=session_id,
+            token_type="access",
+        )
+        for token in access_tokens:
+            self._delete_access_jti(user_id, token.id)
+
+    def _delete_all_access_jtis_for_user(self, user_id: uuid.UUID) -> None:
+        cache.delByPattern(cache.key("auth", "user", user_id, "access", "*"))
 
     def _issue_session_for_user(self, user_id: uuid.UUID) -> AuthSessionResultDTO:
         user = self.users.get_active_by_id(user_id)
@@ -79,6 +112,11 @@ class AuthService:
 
         self.db.commit()
         self.db.refresh(user)
+        self._store_access_jti(
+            user_id=user.id,
+            token_id=access_token_id,
+            expires_at=access_expires_at,
+        )
 
         return AuthSessionResultDTO(
             user=UserPublicDTO.model_validate(user),
@@ -135,13 +173,16 @@ class AuthService:
             raise UnauthorizedException("User not found")
 
         self.tokens.revoke_by_session_id(session_id)
+        self._delete_access_jtis_for_session(user.id, session_id)
         return self._issue_session_for_user(user.id)
 
-    def logout_current_session(self, session_id: uuid.UUID) -> None:
+    def logout_current_session(self, session_id: uuid.UUID, user_id: uuid.UUID) -> None:
+        self._delete_access_jtis_for_session(user_id, session_id)
         self.tokens.revoke_by_session_id(session_id)
         self.db.commit()
 
     def logout_all_sessions(self, user_id: uuid.UUID) -> None:
+        self._delete_all_access_jtis_for_user(user_id)
         self.tokens.revoke_all_for_user(user_id)
         self.db.commit()
 
@@ -188,6 +229,7 @@ class AuthService:
 
         self.users.update_password(user, payload.new_password)
         self.password_resets.mark_used(reset_record)
+        self._delete_all_access_jtis_for_user(user.id)
         self.tokens.revoke_all_for_user(user.id)
         self.db.commit()
 

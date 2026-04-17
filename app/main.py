@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 
 from app.common.config import settings
+from app.common.db import create_indexes
 from app.common.web.error_handlers import register_exception_handlers
 from app.common.web.openapi import TAGS_METADATA, build_custom_openapi
 from app.modules.auth.router import router as auth_router
@@ -29,6 +30,11 @@ register_exception_handlers(app)
 
 if settings.docs_enabled:
     app.openapi = build_custom_openapi(app)
+
+
+@app.on_event("startup")
+def startup() -> None:
+    create_indexes()
 
 
 @app.get("/info", tags=["System"], summary="Проверка базового статуса приложения")

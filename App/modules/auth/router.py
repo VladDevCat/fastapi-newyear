@@ -207,7 +207,7 @@ def logout(
     except (KeyError, ValueError):
         raise UnauthorizedException("Invalid access token payload")
 
-    service.logout_current_session(session_id)
+    service.logout_current_session(session_id, auth.user.id)
     clear_auth_cookies(response)
     return {"message": "Logged out successfully"}
 
