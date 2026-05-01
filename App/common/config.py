@@ -53,6 +53,25 @@ class Settings(BaseSettings):
     MAX_UPLOAD_SIZE_BYTES: int = 10485760
     AVATAR_ALLOWED_MIME_TYPES: str = "image/png,image/jpeg,image/jpg"
 
+    RABBITMQ_HOST: str = "rabbitmq"
+    RABBITMQ_PORT: int = 5672
+    RABBITMQ_USER: str = "student"
+    RABBITMQ_PASS: str = "student_secure_rabbit_pass_change_in_prod"
+    RABBITMQ_EXCHANGE: str = "app.events"
+    RABBITMQ_DLX: str = "app.dlx"
+    QUEUE_USER_REGISTERED: str = "wp.auth.user.registered"
+    QUEUE_USER_REGISTERED_DLQ: str = "wp.auth.user.registered.dlq"
+    RABBITMQ_MAX_RETRIES: int = 3
+    RABBITMQ_CONSUMER_MAX_FAILURES: int = 5
+
+    SMTP_HOST: str = "mailpit"
+    SMTP_PORT: int = 1025
+    SMTP_USER: str = ""
+    SMTP_PASS: str = ""
+    SMTP_FROM: str = "no-reply@wp-labs.local"
+    SMTP_SECURE: bool = False
+    SMTP_LOGIN_URL: str = "http://localhost:4200/api/docs"
+
     JWT_ACCESS_SECRET: str = "change_me_access_secret"
     JWT_REFRESH_SECRET: str = "change_me_refresh_secret"
     JWT_ACCESS_EXPIRATION: str = "15m"
@@ -112,6 +131,19 @@ class Settings(BaseSettings):
             for item in self.AVATAR_ALLOWED_MIME_TYPES.split(",")
             if item.strip()
         }
+
+    def validate_smtp_config(self) -> None:
+        missing = []
+        if not self.SMTP_HOST:
+            missing.append("SMTP_HOST")
+        if not self.SMTP_PORT:
+            missing.append("SMTP_PORT")
+        if not self.SMTP_FROM:
+            missing.append("SMTP_FROM")
+        if bool(self.SMTP_USER) != bool(self.SMTP_PASS):
+            missing.append("SMTP_USER and SMTP_PASS must be set together")
+        if missing:
+            raise RuntimeError(f"Invalid SMTP configuration: {', '.join(missing)}")
 
 
 settings = Settings()

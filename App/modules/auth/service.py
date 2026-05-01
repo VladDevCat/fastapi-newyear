@@ -28,6 +28,7 @@ from app.modules.auth.schemas import (
 )
 from app.modules.auth.token_repository import SessionTokenRepository
 from app.modules.auth.yandex_oauth import YandexOAuthClient
+from app.modules.notifications.events import publish_user_registered_event
 from app.modules.users.schemas import UserPublicDTO
 from app.modules.users.service import UsersService
 
@@ -130,7 +131,9 @@ class AuthService:
             raise ConflictException("User with this email already exists")
 
         user = self.users.create_local_user(payload.email, payload.password)
-        return self._issue_session_for_user(user.id)
+        result = self._issue_session_for_user(user.id)
+        publish_user_registered_event(user)
+        return result
 
     def login(self, payload: LoginDTO) -> AuthSessionResultDTO:
         user = self.users.get_active_by_email(payload.email)
