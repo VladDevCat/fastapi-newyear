@@ -1221,15 +1221,4 @@ Invoke-RestMethod `
   -Headers $headers
 ```
 
-## Что считается успешной сдачей
-
-- `POST /auth/register` создаёт пользователя.
-- После регистрации публикуется событие `user.registered`.
-- RabbitMQ queue `wp.auth.user.registered` получает и отдаёт сообщение consumer.
-- Consumer отправляет welcome email через SMTP.
-- После успешной отправки выполняется `ack`.
-- При ошибке SMTP выполняются retry.
-- После 3 неудачных попыток сообщение попадает в `wp.auth.user.registered.dlq`.
-- Повторное событие с тем же `eventId` не отправляет второе письмо.
-- В сообщениях очереди нет паролей, JWT, refresh token и других секретов.
 
