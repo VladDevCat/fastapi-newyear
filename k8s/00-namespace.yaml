@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: wp-labs
+  labels:
+    app.kubernetes.io/name: web-programming-labs
+    app.kubernetes.io/part-of: k8s-infrastructure

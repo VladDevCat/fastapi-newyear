@@ -1,5 +1,6 @@
 import json
 import logging
+import uuid
 from typing import Any
 
 from redis import Redis
@@ -74,6 +75,31 @@ class RedisCacheService:
         except RedisError as exc:
             logger.warning("Redis pattern delete failed for %s: %s", pattern, exc)
         return deleted
+
+    def acquire_lock(self, key: str, ttl: int = 30) -> str | None:
+        if ttl <= 0:
+            raise ValueError("Redis lock TTL must be positive")
+
+        lock_id = str(uuid.uuid4())
+        try:
+            acquired = self.client.set(name=key, value=lock_id, ex=ttl, nx=True)
+        except RedisError as exc:
+            logger.warning("Redis lock acquire failed for %s: %s", key, exc)
+            return None
+        return lock_id if acquired else None
+
+    def release_lock(self, key: str, lock_id: str) -> bool:
+        script = """
+        if redis.call("get", KEYS[1]) == ARGV[1] then
+            return redis.call("del", KEYS[1])
+        end
+        return 0
+        """
+        try:
+            return bool(self.client.eval(script, 1, key, lock_id))
+        except RedisError as exc:
+            logger.warning("Redis lock release failed for %s: %s", key, exc)
+            return False
 
 
 setattr(RedisCacheService, "del", RedisCacheService.del_key)

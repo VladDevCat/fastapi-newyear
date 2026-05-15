@@ -1,0 +1,60 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+  namespace: wp-labs
+  labels:
+    app: api
+data:
+  APP_NAME: "Holiday Prep API"
+  APP_ENV: "local"
+  SWAGGER_ENABLED: "true"
+
+  MONGO_DB_NAME: "wp_labs"
+  MONGO_HOST: "mongo"
+  MONGO_PORT: "27017"
+  MONGO_AUTH_SOURCE: "admin"
+
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  REDIS_DB: "0"
+  REDIS_KEY_PREFIX: "wp"
+  ITEMS_CACHE_TTL_SECONDS: "120"
+  USER_PROFILE_CACHE_TTL_SECONDS: "300"
+  FILE_META_CACHE_TTL_SECONDS: "300"
+
+  MINIO_ENDPOINT: "minio:9000"
+  MINIO_PUBLIC_ENDPOINT: "localhost:9000"
+  MINIO_BUCKET: "wp-files"
+  MINIO_SECURE: "false"
+  MAX_UPLOAD_SIZE_BYTES: "10485760"
+  AVATAR_ALLOWED_MIME_TYPES: "image/png,image/jpeg,image/jpg"
+
+  RABBITMQ_HOST: "rabbitmq"
+  RABBITMQ_PORT: "5672"
+  RABBITMQ_EXCHANGE: "app.events"
+  RABBITMQ_DLX: "app.dlx"
+  QUEUE_USER_REGISTERED: "wp.auth.user.registered"
+  QUEUE_USER_REGISTERED_DLQ: "wp.auth.user.registered.dlq"
+  RABBITMQ_MAX_RETRIES: "3"
+  RABBITMQ_CONSUMER_MAX_FAILURES: "5"
+
+  SMTP_HOST: "mailpit"
+  SMTP_PORT: "1025"
+  SMTP_USER: ""
+  SMTP_FROM: "no-reply@wp-labs.local"
+  SMTP_SECURE: "false"
+  SMTP_LOGIN_URL: "http://localhost:4200/api/docs"
+
+  JWT_ACCESS_EXPIRATION: "15m"
+  JWT_REFRESH_EXPIRATION: "7d"
+  COOKIE_SECURE: "false"
+  COOKIE_SAMESITE: "lax"
+  COOKIE_DOMAIN: ""
+
+  APP_BASE_URL: "http://localhost:4200"
+  FRONTEND_REDIRECT_URL: "http://localhost:4200/api/docs"
+  YANDEX_CALLBACK_URL: "http://localhost:4200/auth/oauth/yandex/callback"
+  RESET_PASSWORD_EXPIRE_MINUTES: "30"
+  OAUTH_STATE_EXPIRE_MINUTES: "10"
+  AUTH_DEBUG_RETURN_RESET_TOKEN: "false"

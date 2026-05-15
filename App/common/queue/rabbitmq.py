@@ -73,6 +73,13 @@ class RabbitMQService:
         finally:
             connection.close()
 
+    def ping(self) -> bool:
+        connection = self._connect()
+        try:
+            return bool(connection.is_open)
+        finally:
+            connection.close()
+
     def publish(
         self,
         exchange: str,

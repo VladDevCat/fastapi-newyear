@@ -1,6 +1,8 @@
 import uuid
 from datetime import datetime, timezone
 
+from pymongo.errors import DuplicateKeyError
+
 from app.common.cache import cache
 from app.common.config import settings
 from app.common.exceptions import (
@@ -126,14 +128,25 @@ class AuthService:
         )
 
     def register(self, payload: RegisterDTO) -> AuthSessionResultDTO:
-        existing = self.users.get_active_by_email(payload.email)
-        if existing is not None:
-            raise ConflictException("User with this email already exists")
+        email = payload.email.lower().strip()
+        lock_key = cache.key("locks", "auth", "register", email)
+        lock_id = cache.acquire_lock(lock_key, ttl=30)
+        if lock_id is None:
+            raise ConflictException("Registration for this email is already in progress")
 
-        user = self.users.create_local_user(payload.email, payload.password)
-        result = self._issue_session_for_user(user.id)
-        publish_user_registered_event(user)
-        return result
+        try:
+            existing = self.users.get_active_by_email(email)
+            if existing is not None:
+                raise ConflictException("User with this email already exists")
+
+            user = self.users.create_local_user(email, payload.password)
+            result = self._issue_session_for_user(user.id)
+            publish_user_registered_event(user)
+            return result
+        except DuplicateKeyError:
+            raise ConflictException("User with this email already exists")
+        finally:
+            cache.release_lock(lock_key, lock_id)
 
     def login(self, payload: LoginDTO) -> AuthSessionResultDTO:
         user = self.users.get_active_by_email(payload.email)

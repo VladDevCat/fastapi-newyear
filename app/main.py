@@ -8,10 +8,12 @@ from app.common.queue.rabbitmq import rabbitmq
 from app.common.web.error_handlers import register_exception_handlers
 from app.common.web.openapi import TAGS_METADATA, build_custom_openapi
 from app.modules.auth.router import router as auth_router
+from app.modules.health.router import router as health_router
 from app.modules.items.router import router as items_router
 from app.modules.notifications.consumer import user_registered_consumer
 from app.modules.storage.profile_router import router as profile_router
 from app.modules.storage.router import router as files_router
+from app.modules.users.router import router as users_router
 
 logging.basicConfig(level=logging.INFO, format="%(levelname)s:%(name)s:%(message)s")
 logging.getLogger("pika").setLevel(logging.WARNING)
@@ -44,13 +46,17 @@ if settings.docs_enabled:
 
 @app.on_event("startup")
 def startup() -> None:
-    create_indexes()
+    try:
+        create_indexes()
+    except Exception:
+        logger.exception("MongoDB is unavailable during startup; readiness probe will report not_ready")
+
     settings.validate_smtp_config()
     try:
         rabbitmq.setup()
     except Exception:
-        logger.critical("RabbitMQ is unavailable during startup; application will exit for container restart")
-        raise
+        logger.exception("RabbitMQ is unavailable during startup; consumer will reconnect in background")
+
     user_registered_consumer.start()
 
 
@@ -65,6 +71,8 @@ def get_info():
 
 
 app.include_router(auth_router)
+app.include_router(health_router)
 app.include_router(items_router)
 app.include_router(files_router)
 app.include_router(profile_router)
+app.include_router(users_router)
